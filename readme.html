@@ -1,0 +1,95 @@
+<h1>DS1621.py Readme</h1>
+
+<p>Python library for Maxim/Dallas DS1621 I2C temperature sensor, originally written for Raspberry Pi's I2C-bus.  </p>
+
+<h2>Functional description</h2>
+
+<h3>Primary functions</h3>
+
+<ul>
+<li>Read temperature with 3 precisions  </li>
+<li>Read high-resolution temperature (is one of the 3)  </li>
+<li>Read &amp; verbosely report status register  </li>
+<li>Set one-shot measurement mode  </li>
+<li>Set continuous measurement mode  </li>
+</ul>
+
+<h3>Functions for the thermostat pin on the DS1621</h3>
+
+<ul>
+<li>Get thermostat setting from DS' non-volatile memory  </li>
+<li>Set thermostat High and Low temperature  </li>
+<li>Set thermohyst, same but with high temp and hysteresis  </li>
+<li>Set thermoLOW makes thermostat pin active Low (1 = heater on)  </li>
+<li>Set thermoLOW False makes thermostat pin active High (1 = cooler on)  </li>
+</ul>
+
+<h3>Assist functions for converting to and from the DS's register format</h3>
+
+<ul>
+<li>range is -55 to +125 degrees Celsius with .5 resolution  </li>
+<li>data format is LSB MSB  </li>
+<li>MSB is desired temperature in two's complement  </li>
+<li>LSB is 0x80 for an additional .5 degrees.  </li>
+</ul>
+
+<h2>Dependencies</h2>
+
+<p>smbus  </p>
+
+<h2>Additional stuff</h2>
+
+<p>datalog.py is a simple script for taking and logging temperature readings. This is useful for calibrating a sensor.  </p>
+
+<h2>How to use it</h2>
+
+<p>Just for clarity, this is the chips pinout:  </p>
+
+<pre><code>           _____  
+    SDA - 1     8 - Vdd  
+    SCL - 2     7 - A0  
+   Tout - 3     6 - A1  
+    GND - 4_____5 - A2
+</code></pre>
+
+<p>Recommended read: Maxim's <a href="http://pdfserv.maximintegrated.com/en/ds/DS1621.pdf">datasheet</a>  </p>
+
+<p>A DS1621 with address pins A2A1A0 = 000 (all tied to GND) will appear at <br />
+bus address 0x48. Another DS1621 with A2A1A0 = 001 (A0 to Vdd) will be at <br />
+0x49, and so on.  </p>
+
+<p>Sensornames should be declared in the calling module, or in main(), for example:  </p>
+
+<pre><code>Room    = 0x48  
+Remote  = 0x49
+</code></pre>
+
+<p>Using RPi's GPIO (which includes I2C) requires root rights. Run the the driver with elevation like this:  </p>
+
+<pre><code>$ sudo python DS1621.py
+</code></pre>
+
+<p>You can also run it with indirect elevation like this:  </p>
+
+<pre><code>$ python sDS1621.py
+</code></pre>
+
+<p>However, in both cases, the user issuing that command must be member of sudoers.  </p>
+
+<p>Somewhat tighter security is possible with <a href="http://raspberrypi.stackexchange.com/a/40106/2995">this workaround</a>. Essentially, you make the GPIO memory belong to group <code>gpio</code>, and then make your DS1621 user a member of <code>gpio</code> and <code>i2c</code>.  </p>
+
+<blockquote>
+  <p>Check that /dev/gpiomem has the correct permissions.  </p>
+</blockquote>
+
+<pre><code>$ ls -l /dev/gpiomem  
+crw-rw---- 1 root gpio 244, 0 Dec 28 22:51 /dev/gpiomem
+</code></pre>
+
+<blockquote>
+  <p>If it doesn't then set the correct permissions as follows  </p>
+</blockquote>
+
+<pre><code>sudo chown root.gpio /dev/gpiomem  
+sudo chmod g+rw /dev/gpiomem
+</code></pre>
