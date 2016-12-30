@@ -39,13 +39,13 @@ datalog.py is a simple script for taking and logging temperature readings. This 
 ## How to use it   
 
 Just for clarity, this is the chips pinout: 
-           _____
-    SDA - 1     8 - Vdd
-    SCL - 2     7 - A0
-   Tout - 3     6 - A1
-    GND - 4_____5 - A2
+               _____
+        SDA - 1     8 - Vdd
+        SCL - 2     7 - A0
+       Tout - 3     6 - A1
+        GND - 4_____5 - A2
 
-Maxim's [datasheet](http://pdfserv.maximintegrated.com/en/ds/DS1621.pdf)
+Recommended read: Maxim's [datasheet](http://pdfserv.maximintegrated.com/en/ds/DS1621.pdf)
 
 A DS1621 with address pins A2A1A0 = 000 (all tied to GND) will appear at 
 bus address 0x48. Another DS1621 with A2A1A0 = 001 (A0 to Vdd) will be at
