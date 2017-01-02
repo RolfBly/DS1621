@@ -85,8 +85,16 @@ def encode_DS(num):
         else:
             return (MSB - 1) & 0x80FF 
 
-# read functions            
-def read_degreesC(bus, sensor):
+# General read function, also updates a register  
+def read_degreesC_byte(bus, sensor):
+    '''returns temperature in degrees Celsius as integer '''
+        
+    bus.read_byte_data(sensor, START)
+    degreesC_byte = twos_comp(bus.read_byte_data(sensor, READ_TEMP))
+    return degreesC_byte             
+            
+# Oneshot read functions all give a START command.  
+def read_degreesC_all_oneshot(bus, sensor):
     '''returns temperature in degrees Celsius, 
         as integer,
         as same reading with added half degree precision
@@ -94,30 +102,50 @@ def read_degreesC(bus, sensor):
         
     bus.read_byte_data(sensor, START)
 
-    DegreesC_byte = twos_comp(bus.read_byte_data(sensor, READ_TEMP))
+    degreesC_byte = twos_comp(bus.read_byte_data(sensor, READ_TEMP))
         
-    DegreesC_word = decode_DS(bus.read_word_data(sensor, READ_TEMP))
+    degreesC_word = decode_DS(bus.read_word_data(sensor, READ_TEMP))
 
-    Slope = bus.read_byte_data(sensor, READ_SLOPE)
-    Counter = bus.read_byte_data(sensor, READ_COUNTER)
-    DegreesC_HR = DegreesC_byte - .25 + (Slope - Counter)/Slope
-    #~ print Slope, Counter, Slope - Counter, (Slope - Counter)/Slope 
+    slope = bus.read_byte_data(sensor, READ_SLOPE)
+    counter = bus.read_byte_data(sensor, READ_COUNTER)
+    degreesC_HR = degreesC_byte - .25 + (slope - counter)/slope
+    #~ print slope, counter, slope - counter, (slope - counter)/slope 
     
-    bus.read_byte_data(sensor, STOP)
-
-    return DegreesC_byte, DegreesC_word, DegreesC_HR
-
-
-def read_degreesC_hiRes(bus, sensor):
+    return degreesC_byte, degreesC_word, degreesC_HR
+    
+def read_degreesC_hiRes_oneshot(bus, sensor): 
     '''returns temperature as high-res value, as per DS1621 datasheet''' 
+    
+    bus.read_byte_data(sensor, START)
+    
+    degreesC_byte = twos_comp(bus.read_byte_data(sensor, READ_TEMP))
 
-    DegreesC_byte = twos_comp(bus.read_byte_data(sensor, READ_TEMP))
+    slope = bus.read_byte_data(sensor, READ_SLOPE)
+    counter = bus.read_byte_data(sensor, READ_COUNTER)
+    degreesC_HR = degreesC_byte - .25 + (slope - counter)/slope
 
-    Slope = bus.read_byte_data(sensor, READ_SLOPE)
-    Counter = bus.read_byte_data(sensor, READ_COUNTER)
-    DegreesC_HR = DegreesC_byte - .25 + (Slope - Counter)/Slope
+    return degreesC_HR
 
-    return DegreesC_HR
+# Continuous read function DOES NOT give a START command
+# the START command for Continuous mode is given by set_mode(Continous)    
+def read_degreesC_continous(bus, sensor):
+    '''returns temperature in degrees Celsius, 
+        as integer,
+        as same reading with added half degree precision
+        and with high(er) resolution, as per DS1621 datasheet '''
+        
+    degreesC_byte = twos_comp(bus.read_byte_data(sensor, READ_TEMP))
+    degreesC_word = decode_DS(bus.read_word_data(sensor, READ_TEMP))
+
+    slope = bus.read_byte_data(sensor, READ_SLOPE)
+    counter = bus.read_byte_data(sensor, READ_COUNTER)
+    degreesC_HR = degreesC_byte - .25 + (slope - counter)/slope
+
+    return degreesC_byte, degreesC_word, degreesC_HR
+
+# Continuous mode needs a stop-conversion command    
+def stop_conversion(bus, sensor): 
+    bus.read_byte_data(sensor, STOP)
 
 def read_config(bus, sensor):
     Conf = bus.read_byte_data(sensor, ACCESS_CONFIG)
@@ -182,6 +210,10 @@ def set_thermostat(bus, sensor, lower, upper):
     
     Conf = bus.read_byte_data(sensor, ACCESS_CONFIG) & CLR_TL_TH
     write_conf_byte(bus, sensor, Conf)
+    
+    # take a reading to update the thermostat register
+    read_degreesC_byte(bus, sensor)
+    
     return
 
 def set_thermohyst(bus, sensor, upper, hyst=0.5):
@@ -191,48 +223,65 @@ def set_thermohyst(bus, sensor, upper, hyst=0.5):
     set_thermostat(bus, sensor, upper - hyst, upper)
     return
     
-def set_1shot(bus, sensor):
-    Conf = bus.read_byte_data(sensor, ACCESS_CONFIG) | ONE_SHOT
-    write_conf_byte(bus, sensor, Conf)
+def set_mode(bus, sensor, mode):
+    if mode == 'Continuous':
+        Conf = bus.read_byte_data(sensor, ACCESS_CONFIG) & CONT_MODE
+        write_conf_byte(bus, sensor, Conf)
+        bus.read_byte_data(sensor, START)
+        
+    elif mode == 'OneShot':    
+        Conf = bus.read_byte_data(sensor, ACCESS_CONFIG) | ONE_SHOT
+        write_conf_byte(bus, sensor, Conf)
+        
+    else:
+        print 'Unknown mode: {}'.format(mode)
+        
     return
-    
-def set_continuous(bus, sensor):
-    Conf = bus.read_byte_data(sensor, ACCESS_CONFIG) & CONT_MODE
-    write_conf_byte(bus, sensor, Conf)
-    return
-
+        
 def set_thermoLOW(bus, sensor, LOW=True): 
     Conf = bus.read_byte_data(sensor, ACCESS_CONFIG)
     Conf = Conf & POL_LO if LOW else Conf | POL_HI  
         
     write_conf_byte(bus, sensor, Conf)
+    
+    # take a reading to update the thermostat register
+    read_degreesC_byte(bus, sensor)
+    
     return
     
 def read_logline(bus, sensor, name):
-    reading = read_degreesC(bus, sensor)
+    reading = read_degreesC_all_oneshot(bus, sensor)
     return '\tSensor name: {:8} {:3} | {:5.1f} | {:7.3f}'.format(name, *reading)
+
+def wake_up(bus, sensor):
+    ''' Device always starts in Idle mode, first reading is not usable.'''
+    read_degreesC_byte(bus, sensor)
+    time.sleep(0.6)
     
 def main():
-    # just initialise what's on the bus, show settings and a reading. 
-    # more examples in DS_example.py
-
+    # just initialise what's on the bus, show settings and take a reading. 
+    
+    # must instantiate the bus. 
+    # on RPi 256 MB version, it's called i2c_0
+    # on RPi 512 MB version, it's called i2c_1
+    # just for clarity, use those names
     i2c_0 = smbus.SMBus(0)
-    Room    = 0x48
 
-    # First reading on bootup is not usable, only wakes the devices up. 
-    # You can't do this in init because you need a bus instance.  
-    read_degreesC(i2c_0, Room)
-    time.sleep(0.6) # allow some wake-up time. Tweaked for shortest time. 
+    # sensorname at bus address.
+    Room = 0x48
+
+    # First reading after startup is not usable, only wakes the devices up. 
+    ds.wake_up(i2c_0, Room)
 
     # show chip configuration
     read_config(i2c_0, Room)
     
-    s = '''\n  Sensor name {}:
+    s = '''\n  Sensorname {}:
     \tas integer: {}
     \twith .5 resolution: {}
     \thigh-res: {}'''
     
-    print s.format('Room', *read_degreesC(i2c_0, Room))
+    print s.format('Room', *read_degreesC_all_oneshot(i2c_0, Room))
     
 if __name__ == "__main__":
     main()

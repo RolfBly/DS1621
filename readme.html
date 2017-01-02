@@ -1,30 +1,34 @@
-<h1>DS1621.py Readme</h1>
+<h2>DS1621.py Readme</h2>
 
 <p>Python library for Maxim/Dallas DS1621 I2C temperature sensor, originally written for Raspberry Pi's I2C-bus.  </p>
 
-<h2>Functional description</h2>
+<h3>Functional description</h3>
 
-<h3>Primary functions</h3>
+<h4>Primary functions</h4>
 
 <ul>
 <li>Read temperature with 3 precisions  </li>
 <li>Read high-resolution temperature (is one of the 3)  </li>
 <li>Read &amp; verbosely report status register  </li>
-<li>Set one-shot measurement mode  </li>
-<li>Set continuous measurement mode  </li>
+<li>Set measurement mode to Continuous or One Shot  </li>
+<li>Stop conversion command to end a Continuous session.  </li>
 </ul>
 
-<h3>Functions for the thermostat pin on the DS1621</h3>
+<p>Reading in One-shot mode issues a start command, takes a reading, and then leaves the device idle.  </p>
+
+<p>Setting to Continous mode issues a start command. You can then take a any number of readings, until you issue a stop conversion command. For more information, see the DS1621 datasheet.  </p>
+
+<h4>Functions for the thermostat pin on the DS1621</h4>
 
 <ul>
-<li>Get thermostat setting from DS' non-volatile memory  </li>
+<li>Get thermostat setting from DS1621 non-volatile memory  </li>
 <li>Set thermostat High and Low temperature  </li>
 <li>Set thermohyst, same but with high temp and hysteresis  </li>
 <li>Set thermoLOW makes thermostat pin active Low (1 = heater on)  </li>
 <li>Set thermoLOW False makes thermostat pin active High (1 = cooler on)  </li>
 </ul>
 
-<h3>Assist functions for converting to and from the DS's register format</h3>
+<h4>Assist functions for converting to and from the DS's register format</h4>
 
 <ul>
 <li>range is -55 to +125 degrees Celsius with .5 resolution  </li>
@@ -33,15 +37,17 @@
 <li>LSB is 0x80 for an additional .5 degrees.  </li>
 </ul>
 
-<h2>Dependencies</h2>
+<h3>Dependencies</h3>
 
 <p>smbus  </p>
 
-<h2>Additional stuff</h2>
+<h3>Furthermore</h3>
 
-<p>datalog.py is a simple script for taking and logging temperature readings. This is useful for calibrating a sensor.  </p>
+<p>datalog.py is a simple script for taking and logging temperature readings. This is useful for calibrating the device (for example, if it's mounted too near a more or less constant heat source that offsets the reading).  </p>
 
-<h2>How to use it</h2>
+<h3>How to use</h3>
+
+<p>A sensor more or less directly mounted on or near a Raspberry Pi will be heated up by the RPi and may read several degrees higher than the actual room temperature. You can find out more about maximum cable length for the I2C-bus <a href="http://electronics.stackexchange.com/questions/106265/maximum-i2c-bus-length">here</a>.  </p>
 
 <p>Just for clarity, this is the chips pinout:  </p>
 
@@ -52,13 +58,11 @@
     GND - 4_____5 - A2
 </code></pre>
 
-<p>Recommended read: Maxim's <a href="http://pdfserv.maximintegrated.com/en/ds/DS1621.pdf">datasheet</a>  </p>
+<p>Recommended reading is Maxim's <a href="http://pdfserv.maximintegrated.com/en/ds/DS1621.pdf">datasheet</a>.  </p>
 
-<p>A DS1621 with address pins A2A1A0 = 000 (all tied to GND) will appear at <br />
-bus address 0x48. Another DS1621 with A2A1A0 = 001 (A0 to Vdd) will be at <br />
-0x49, and so on.  </p>
+<p>A DS1621 with address pins A2A1A0 = 000 (all tied to GND) will appear at bus address 0x48. Another DS1621 with A2A1A0 = 001 (A0 to Vdd) will be at 0x49, and so on.  </p>
 
-<p>Sensornames should be declared in the calling module, or in main(), for example:  </p>
+<p>Sensornames should be declared in the calling module or in main(), for example:  </p>
 
 <pre><code>Room    = 0x48  
 Remote  = 0x49
@@ -69,27 +73,30 @@ Remote  = 0x49
 <pre><code>$ sudo python DS1621.py
 </code></pre>
 
-<p>You can also run it with indirect elevation like this:  </p>
+<p>You can also run it with indirect elevation with this script:  </p>
 
-<pre><code>$ python sDS1621.py
+<pre><code>#! /usr/bin/env python  
+# -*- coding: utf-8 -*-  
+
+import subprocess  
+
+subprocess.call(['sudo', './DS1621.py'])
 </code></pre>
 
-<p>However, in both cases, the user issuing that command must be member of sudoers.  </p>
+<p>In both cases however, the user who issues the command or launches the script, must be a sudoer.  </p>
 
-<p>Somewhat tighter security is possible with <a href="http://raspberrypi.stackexchange.com/a/40106/2995">this workaround</a>. Essentially, you make the GPIO memory belong to group <code>gpio</code>, and then make your DS1621 user a member of <code>gpio</code> and <code>i2c</code>.  </p>
-
-<blockquote>
-  <p>Check that /dev/gpiomem has the correct permissions.  </p>
-</blockquote>
+<p>Tighter security is possible with this <a href="http://raspberrypi.stackexchange.com/a/40106/2995">workaround</a>. Essentially, you make the GPIO memory belong to group <code>gpio</code>, and then make your DS1621 user a member of <code>gpio</code> and <code>i2c</code>. <br />
+<quote>
+Check that /dev/gpiomem has the correct permissions.  </p>
 
 <pre><code>$ ls -l /dev/gpiomem  
 crw-rw---- 1 root gpio 244, 0 Dec 28 22:51 /dev/gpiomem
 </code></pre>
 
-<blockquote>
-  <p>If it doesn't then set the correct permissions as follows  </p>
-</blockquote>
+<p>If it doesn't then set the correct permissions as follows  </p>
 
 <pre><code>sudo chown root.gpio /dev/gpiomem  
 sudo chmod g+rw /dev/gpiomem
 </code></pre>
+
+<p></quote>  </p>
